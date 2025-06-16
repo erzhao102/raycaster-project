@@ -15,7 +15,6 @@ int map[mapLength][mapWidth] =
   {1,0,0,0,0,0,0,1},
   {1,1,1,1,1,1,1,1}
 };
-
 Player player(300, 300);
 
 void error_callback(int error, const char* description)
@@ -45,7 +44,7 @@ void draw2Dmap()
       float x = -1.0f + col * tileSizeX;
       float y = -1.0f + (mapLength - 1 - row) * tileSizeY;
 
-      glBegin(GL_QUADS);
+      glBegin(GL_QUADS); // drawing a tile with the 4 points
       glVertex2f(x, y);
       glVertex2f(x + tileSizeX, y);
       glVertex2f(x + tileSizeX, y + tileSizeY);

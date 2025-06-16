@@ -45,8 +45,8 @@ void Player::move(float dx, float dy)
 void Player::draw() 
 {
   glColor3f(0.0f, 1.0f, 0.0f);  // green
-  glPointSize(8);
-  glBegin(GL_POINTS);
+  glPointSize(8); // size of Player
+  glBegin(GL_POINTS); // starting opengl to draw single point
 
   // Converting to [-1, 1] range
   // window size is 1024 by 512
@@ -55,6 +55,6 @@ void Player::draw()
   float cx = (x / 512.0f) - 1.0f;  
   float cy = (y / 256.0f) - 1.0f;  
 
-  glVertex2f(cx, cy);
+  glVertex2f(cx, cy); // drawing vertex
   glEnd();
 }
