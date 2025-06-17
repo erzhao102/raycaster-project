@@ -3,16 +3,18 @@
 
 class Player {
   private:
-    float x,y;
+    float x,y,angle;
   
   public:
     Player();
-    Player(float posX, float posY);
+    Player(float posX, float posY, float posAngle);
     float getPosX();
     void setPosX(float newX);
     float getPosY();
     void setPosY(float newY);
-    void move(float dx, float dy);
+    float getPosAngle();
+    void setPosAngle(float newAngle);
+    void move(int foward, int sideway);
     void draw();
 
 };
