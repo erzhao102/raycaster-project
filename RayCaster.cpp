@@ -1,24 +1,29 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <math.h>
+#include <cfloat>
 #include "Player.h"
 
 #define _USE_MATH_DEFINES
 using namespace std;
 
-const int mapLength = 8, mapWidth = 8, mapArea = 64;
+
+const int mapLength = 8, mapWidth = 8, tileSize = 64;
 int map[mapLength][mapWidth] =
 {
   {1,1,1,1,1,1,1,1},
   {1,0,0,0,0,0,0,1},
-  {1,1,1,1,1,0,0,1},
+  {1,1,1,1,1,0,0,1},  
   {1,0,0,0,0,0,0,1},
-  {1,0,1,0,0,1,1,1},
-  {1,0,1,0,0,0,0,1},
+  {1,0,0,1,1,1,1,1},
+  {1,0,0,0,0,0,0,1},
   {1,0,1,0,1,0,0,1},
   {1,1,1,1,1,1,1,1}
 };
 Player player(300, 300, 0);
+
+const float tileSizeX = 1.0f / mapWidth;    // width of 1 tile in NDC
+const float tileSizeY = 2.0f / mapLength;   // height of 1 tile in NDC
 
 void error_callback(int error, const char* description)
 {
@@ -27,8 +32,6 @@ void error_callback(int error, const char* description)
 
 void draw2Dmap() 
 {
-  const float tileSizeX = 1.0f / mapWidth;    // width of 1 tile in NDC
-  const float tileSizeY = 2.0f / mapLength;   // height of 1 tile in NDC
 
   for(int row = 0; row < mapLength; row++) 
   {
@@ -71,11 +74,175 @@ void draw2Dmap()
   }
 }
 
+float findDistance(float ax, float ay, float bx, float by)
+{
+  return sqrt( (bx - ax) * (bx - ax) + (by - ay) * (by - ay) );
+}
+
+float DegreesToRadians(float degrees) {
+    return degrees * (M_PI / 180);
+}
+
 void drawRays()
 {
-  float rayX, rayY;
+  int rays = 60; 
+  int viewDistance = 8;
+  float x = player.getPosX();
+  float y = player.getPosY();
+  float vX,vY,dX,dY;
+  int mX,mY;
+  float distance;
+
+  
+  for(int i = 0; i < rays; i++)
+  {
+    float theta = player.getPosAngle() + DegreesToRadians(30.0f - i); 
+    if(theta > 2 * M_PI)
+    {
+      theta -= 2 * M_PI;
+    }
+    if(theta < 0)
+    {
+      theta += 2 * M_PI;
+    }
+
+    // horizontal 
+    float horDistance = FLT_MAX;
+    float horX, horY; 
+    float negArcTan = -1/tan(theta); // for finding the x value since we have both an angle and y
+    if(theta > M_PI)
+    {
+      vY = (((int)y >> 6) << 6) - 0.0001;  // divides by 64 by bit shifting 6 down then shifting up 6 to floor the value
+      vX = (y - vY) * negArcTan + x;
+      dY = -64;
+      dX = -dY * negArcTan;
+    }
+    else if(theta < M_PI)
+    {
+      vY = (((int)y >> 6) << 6) + 64;
+      vX = (y - vY) * negArcTan + x;
+      dY = 64;
+      dX = -dY * negArcTan;
+    }
+    if (fabs(sin(theta)) < 0.0001f)
+    {
+      horDistance = FLT_MAX;
+    }
+    for(int j = 0; j < viewDistance; j++)
+    {
+      mX = ((int)(vX)>>6);
+      mY = 7 - ((int)(vY)>>6); // 7 is to adjust from the pixel starting point to 2d array
+      if(mX >= 0 && mX < mapWidth && mY >= 0 && mY < mapLength)
+      {
+        if(map[mY][mX] == 1)
+        {
+          horDistance = findDistance(x,y,vX,vY);
+          horX = vX;
+          horY = vY;
+          break;
+        }
+        
+          vY += dY;
+          vX += dX;
+        
+      }
+    }
+
+    //vertical
+    float verDistance = FLT_MAX;
+    viewDistance = 8; 
+    float negTan = -tan(theta); // for finding the y value since we have both an angle and x
+    if(theta > M_PI_2 && theta < 3 * M_PI_2)
+    {
+      vX = (((int)x >> 6) << 6) - 0.0001;  // divides by 64 by bit shifting 6 down then shifting up 6 to floor the value
+      vY = (x - vX) * negTan + y;
+      dX = -64;
+      dY = -dX * negTan;
+    }
+    else if(theta < M_PI_2 || theta > 3 * M_PI_2)
+    {
+      vX = (((int)x >> 6) << 6) + 64;
+      vY = (x - vX) * negTan + y;
+      dX = 64;
+      dY = -dX * negTan;
+    }
+    if (fabs(cos(theta)) < 0.0001f)
+    {
+      verDistance = FLT_MAX;
+    }
+
+    for(int j = 0; j < viewDistance; j++)
+    {
+      mX = ((int)(vX)>>6);
+      mY = 7 - ((int)(vY)>>6); // 7 is to adjust from the pixel starting point to 2d array
+      if(mX >= 0 && mX < mapWidth && mY >= 0 && mY < mapLength)
+      {
+        if(map[mY][mX] == 1)
+        {
+          verDistance = findDistance(x,y,vX,vY);
+          break;
+        }
+        
+          vY += dY;
+          vX += dX;
+        
+      }
+    }
+
+    // creating rays
+    if(verDistance > horDistance)
+    {
+      distance = horDistance;
+      vX = horX;
+      vY = horY;
+      glColor3f(0.7f,0.0f,0.0f);
+    }
+    else
+    {
+      distance = verDistance;
+      glColor3f(1.0f,0.0f,0.0f);
+    }
+    
+    float cx = (player.getPosX() / 512.0f) - 1.0f;  
+    float cy = (player.getPosY() / 256.0f) - 1.0f;
+    float endX = (vX / 512.0f) - 1.0f;
+    float endY = (vY / 256.0f) - 1.0f;
+    glLineWidth(1);
+    glBegin(GL_LINES);
+    glVertex2f(cx,cy);
+    glVertex2f(endX, endY);
+    glEnd();
+
+    // creating 3D model
+    float lineHeight = (tileSize * 320.0f) / (distance * cos(theta - player.getPosAngle())); //removing fisheye effect 
+    if(lineHeight > 320.0f)
+    {
+        lineHeight = 320.0f;
+    }
+
+    float centerY = 0.0f; 
+    float halfLine = (lineHeight / 256.0f) / 2.0f;
+
+    float hx = (((i * 8.0f) + 530.0f) / 512.0f) - 1.0f; // converting to opengl units from pixels
+    float topY = centerY + halfLine;
+    float bottomY = centerY - halfLine;
+
+    glLineWidth(8.0f);
+    glBegin(GL_LINES);
+    glVertex2f(hx, bottomY);
+    glVertex2f(hx, topY);
+    glEnd();
+  }
+}
+
+  
+
+/*
+void draw3DWalls()
+{
 
 }
+*/
 
 void keyCallBack(GLFWwindow* window, int key, int scancode, int action, int mods) 
 {
@@ -88,15 +255,15 @@ void keyCallBack(GLFWwindow* window, int key, int scancode, int action, int mods
     }
     if(key == GLFW_KEY_A) 
     {
-      sideway = -5;
+      sideway = 5;
     }
     if(key == GLFW_KEY_S)
     { 
-      forward - 5;
+      forward = -5;
     }
     if(key == GLFW_KEY_D) 
     {
-      sideway = 5;
+      sideway = -5;
     }
     player.move(forward,sideway);
   }
@@ -120,7 +287,7 @@ void mouseCallback(GLFWwindow* window, double posX, double posY)
     currentX = posX;
 
     // adjusts with sens
-    float sensitivity = 0.03f; 
+    float sensitivity = 0.001f; 
     float angleChange = dx * sensitivity;
     player.setPosAngle(player.getPosAngle() + angleChange);
 }
@@ -161,7 +328,7 @@ int display()
         glfwSetKeyCallback(window, keyCallBack);
         glfwSetCursorPosCallback(window, mouseCallback);
 
-
+        drawRays();
         glfwSwapBuffers(window); // Refreshes to current frame
         glfwPollEvents(); // Handles events
   }

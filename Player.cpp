@@ -82,8 +82,8 @@ void Player::draw()
   glVertex2f(cx, cy); // drawing vertex
   glEnd();
 
-
-  float lineLength = 0.1f; // Controls how long the direction line is
+// was for testing not needed anymore
+/*  float lineLength = 0.1f; // Controls how long the direction line is
   float dx = cos(angle) * lineLength;
   float dy = sin(angle) * lineLength;
 
@@ -95,6 +95,7 @@ void Player::draw()
   glVertex2f(cx, cy); // player coords
   glVertex2f(cx + dx, cy + dy);  // facing angle
   glEnd();
+*/
 
   
 }
