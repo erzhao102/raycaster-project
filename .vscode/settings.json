@@ -3,6 +3,7 @@
     "map": "cpp",
     "cmath": "cpp",
     "ostream": "cpp",
-    "iterator": "cpp"
+    "iterator": "cpp",
+    "random": "cpp"
   }
 }

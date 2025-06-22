@@ -1,7 +1,8 @@
 #ifndef _PLAYER
 #define _PLAYER
 
-class Player {
+class Player 
+{
   private:
     float x,y,angle;
   
@@ -14,7 +15,7 @@ class Player {
     void setPosY(float newY);
     float getPosAngle();
     void setPosAngle(float newAngle);
-    void move(int foward, int sideway);
+    void move(int forward, int sideway);
     void draw();
 
 };

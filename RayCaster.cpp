@@ -3,75 +3,19 @@
 #include <math.h>
 #include <cfloat>
 #include "Player.h"
+#include "Level.h"
 
 #define _USE_MATH_DEFINES
 using namespace std;
 
-
-const int mapLength = 8, mapWidth = 8, tileSize = 64;
-int map[mapLength][mapWidth] =
-{
-  {1,1,1,1,1,1,1,1},
-  {1,0,0,0,0,0,0,1},
-  {1,1,1,1,1,0,0,1},  
-  {1,0,0,0,0,0,0,1},
-  {1,0,0,1,1,1,1,1},
-  {1,0,0,0,0,0,0,1},
-  {1,0,1,0,1,0,0,1},
-  {1,1,1,1,1,1,1,1}
-};
+Level map;
 Player player(300, 300, 0);
 
-const float tileSizeX = 1.0f / mapWidth;    // width of 1 tile in NDC
-const float tileSizeY = 2.0f / mapLength;   // height of 1 tile in NDC
+
 
 void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error: %s\n", description);
-}
-
-void draw2Dmap() 
-{
-
-  for(int row = 0; row < mapLength; row++) 
-  {
-    for(int col = 0; col < mapWidth; col++) 
-    {
-      if(map[row][col] == 1) 
-      {
-          glColor3f(1.0f, 1.0f, 1.0f);  // wall
-      } 
-      else 
-      {
-        glColor3f(0.0f, 0.0f, 0.0f);  // floor
-      }
-
-      // Convert grid position to NDC
-      float x = -1.0f + col * tileSizeX;
-      float y = -1.0f + (mapLength - 1 - row) * tileSizeY;
-
-      // Drawing Tile with 4 points
-      glBegin(GL_QUADS);
-      glVertex2f(x, y); // bot left
-      glVertex2f(x + tileSizeX, y); // top left
-      glVertex2f(x + tileSizeX, y + tileSizeY); // top right
-      glVertex2f(x, y + tileSizeY); // bot right
-      glEnd();
-
-      // Drawing border for tile
-      glColor3f(0.5f, 0.5f, 0.5f); // gray
-      glLineWidth(1.0f);
-      glBegin(GL_LINE_LOOP);
-      glVertex2f(x, y);
-      glVertex2f(x + tileSizeX, y);
-      glVertex2f(x + tileSizeX, y + tileSizeY);
-      glVertex2f(x, y + tileSizeY);
-      glEnd();
-
-
-      
-    }
-  }
 }
 
 float findDistance(float ax, float ay, float bx, float by)
@@ -81,6 +25,39 @@ float findDistance(float ax, float ay, float bx, float by)
 
 float DegreesToRadians(float degrees) {
     return degrees * (M_PI / 180);
+}
+
+void draw3DWalls(float theta, int index, float distance)
+{
+  float fov = DegreesToRadians(60.0f);  // 60 degrees FOV
+  float screenWidth = 512.0f;
+  float screenHeight = 512.0f; // size of screen in pixels
+  float projectionOffset = (screenWidth / 2.0f) / tan(fov / 2.0f);
+  float omega = theta - player.getPosAngle();
+  if(omega < -M_PI) 
+  {
+    omega += 2 * M_PI;
+  }
+  if(omega > M_PI)
+  {
+    omega -= 2 * M_PI;
+  } 
+  float xDistance = distance * cos(omega); // removing fish eye effect by using the x component of the distance
+  float lineHeight = (tileSize * projectionOffset) / xDistance;
+  if (lineHeight > screenHeight)  // limiting the height of the line to the screen height
+  {
+      lineHeight = screenHeight;
+  }
+  float centerY = 0.0f; 
+  float halfLine = (lineHeight / 256.0f) / 2.0f;
+  float hx = (((index * 8.0f) + 530.0f) / 512.0f) - 1.0f; // converting to opengl units from pixels
+  float topY = centerY + halfLine;
+  float bottomY = centerY - halfLine;
+  glLineWidth(8.0f);
+  glBegin(GL_LINES);
+  glVertex2f(hx, bottomY);
+  glVertex2f(hx, topY);
+  glEnd();
 }
 
 void drawRays()
@@ -132,9 +109,9 @@ void drawRays()
     {
       mX = ((int)(vX)>>6);
       mY = 7 - ((int)(vY)>>6); // 7 is to adjust from the pixel starting point to 2d array
-      if(mX >= 0 && mX < mapWidth && mY >= 0 && mY < mapLength)
+      if(mX >= 0 && mX < mapWidth && mY >= 0 && mY < mapHeight)
       {
-        if(map[mY][mX] == 1)
+        if(map.getWalls()[mY][mX] == 1)
         {
           horDistance = findDistance(x,y,vX,vY);
           horX = vX;
@@ -175,9 +152,9 @@ void drawRays()
     {
       mX = ((int)(vX)>>6);
       mY = 7 - ((int)(vY)>>6); // 7 is to adjust from the pixel starting point to 2d array
-      if(mX >= 0 && mX < mapWidth && mY >= 0 && mY < mapLength)
+      if(mX >= 0 && mX < mapWidth && mY >= 0 && mY < mapHeight)
       {
-        if(map[mY][mX] == 1)
+        if(map.getWalls()[mY][mX] == 1)
         {
           verDistance = findDistance(x,y,vX,vY);
           break;
@@ -212,37 +189,11 @@ void drawRays()
     glVertex2f(cx,cy);
     glVertex2f(endX, endY);
     glEnd();
-
+    
     // creating 3D model
-    float lineHeight = (tileSize * 320.0f) / (distance * cos(theta - player.getPosAngle())); //removing fisheye effect 
-    if(lineHeight > 320.0f)
-    {
-        lineHeight = 320.0f;
-    }
-
-    float centerY = 0.0f; 
-    float halfLine = (lineHeight / 256.0f) / 2.0f;
-
-    float hx = (((i * 8.0f) + 530.0f) / 512.0f) - 1.0f; // converting to opengl units from pixels
-    float topY = centerY + halfLine;
-    float bottomY = centerY - halfLine;
-
-    glLineWidth(8.0f);
-    glBegin(GL_LINES);
-    glVertex2f(hx, bottomY);
-    glVertex2f(hx, topY);
-    glEnd();
+    draw3DWalls(theta,i, distance);
   }
 }
-
-  
-
-/*
-void draw3DWalls()
-{
-
-}
-*/
 
 void keyCallBack(GLFWwindow* window, int key, int scancode, int action, int mods) 
 {
@@ -321,7 +272,7 @@ int display()
   {
         glClear(GL_COLOR_BUFFER_BIT); // Clearing background
         glClearColor(0.5f,0.5f,0.5f,1.0f);
-        draw2Dmap();
+        map.generate2DLevel();
         player.draw();
 
         // Movement Events
@@ -332,7 +283,6 @@ int display()
         glfwSwapBuffers(window); // Refreshes to current frame
         glfwPollEvents(); // Handles events
   }
-  glfwTerminate();
   return 0;
 }
 
